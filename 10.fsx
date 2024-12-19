@@ -1,22 +1,7 @@
-﻿fsi.PrintWidth <- 200
-
-open System
+﻿open System
 open System.IO
 
 let input = File.ReadAllLines("./10.txt")
-// let input =
-//     """
-//     89010123
-//     78121874
-//     87430965
-//     96549874
-//     45678903
-//     32019012
-//     01329801
-//     10456732
-//     """
-//     |> _.Split("\n", StringSplitOptions.TrimEntries ||| StringSplitOptions.RemoveEmptyEntries)
-
 
 let map =
     input
@@ -59,5 +44,13 @@ let part1 =
     |> trailheads
     |> Array.collect (trails map)
     |> Array.groupBy Array.head
-    |> Array.map (fun (th, paths) -> (th, paths |> Array.map Array.last |> Array.distinct |> Array.length))
+    |> Array.map (fun (th, trails) -> (th, trails |> Array.map Array.last |> Array.distinct |> Array.length))
     |> Array.sumBy snd
+
+let part2 =
+    map
+    |> trailheads
+    |> Array.collect (trails map)
+    |> Array.groupBy Array.head
+    |> Array.map (fun (th, trails) -> Array.length trails)
+    |> Array.sum
