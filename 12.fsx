@@ -1,22 +1,6 @@
-open System
 open System.IO
 
 let input = File.ReadAllLines("./12.txt") |> Array.map _.ToCharArray()
-// let input =
-//     """
-//     RRRRIICCFF
-//     RRRRIICCCF
-//     VVRRRCCFFF
-//     VVRCCCJFFF
-//     VVVVCJJCFE
-//     VVIVCCJJEE
-//     VVIIICJJEE
-//     MIIIIIJJEE
-//     MIIISIJEEE
-//     MMMISSJEEE
-//     """
-//     |> _.Split("\n", StringSplitOptions.TrimEntries ||| StringSplitOptions.RemoveEmptyEntries)
-//     |> Array.map _.ToCharArray()
 
 type Region = {
     Plant: char
@@ -88,3 +72,55 @@ let part1 =
     regions
     |> List.sumBy (fun r -> r.Fences * List.length r.Area)
 
+let isTopLeftCorner (ri, ci) (plots: char array array) =
+    let plant = plots[ri][ci]
+    if (ri = 0 && ci = 0) then true
+    elif ri >= 1 && ci = 0 then plots[ri - 1][ci] <> plant
+    elif ri = 0 && ci >= 1 then plots[ri][ci - 1] <> plant
+    else
+        (plots[ri - 1][ci] = plant && plots[ri][ci - 1] = plant && plots[ri - 1][ci - 1] <> plant) ||
+        (plots[ri - 1][ci] <> plant && plots[ri][ci - 1] <> plant)
+
+let isTopRightCorner  (ri, ci) (plots: char array array) =
+    let plant = plots[ri][ci]
+    if ri = 0 && ci = Array.length plots[ri] - 1 then true
+    elif ri >= 1 && ci = Array.length plots[ri] - 1 then plots[ri - 1][ci] <> plant
+    elif ri = 0 && ci <= Array.length plots[ri] - 2 then plots[ri][ci + 1] <> plant
+    else
+        (plots[ri - 1][ci] = plant && plots[ri][ci + 1] = plant && plots[ri - 1][ci + 1] <> plant) ||
+        (plots[ri - 1][ci] <> plant && plots[ri][ci + 1] <> plant)
+
+let isBottomRightCorner (ri, ci) (plots: char array array) =
+    let plant = plots[ri][ci]
+    if ri = Array.length plots - 1 && ci = Array.length plots[ri] - 1 then true
+    elif ri <= Array.length plots - 2 && ci = Array.length plots[ri] - 1 then plots[ri + 1][ci] <> plant
+    elif ri = Array.length plots - 1 && ci <= Array.length plots[ri] - 2 then plots[ri][ci + 1] <> plant
+    else
+        (plots[ri + 1][ci] = plant && plots[ri][ci + 1] = plant && plots[ri + 1][ci + 1] <> plant) ||
+        (plots[ri + 1][ci] <> plant && plots[ri][ci + 1] <> plant)
+
+let isBottomLeftCorner (ri, ci) (plots: char array array) =
+    let plant = plots[ri][ci]
+    if ri = Array.length plots - 1 && ci = 0 then true
+    elif ri <= Array.length plots - 2 && ci = 0 then plots[ri + 1][ci] <> plant
+    elif ri = Array.length plots - 1 && ci >= 1 then plots[ri][ci - 1] <> plant
+    else
+        (plots[ri + 1][ci] = plant && plots[ri][ci - 1] = plant && plots[ri + 1][ci - 1] <> plant) ||
+        (plots[ri + 1][ci] <> plant && plots[ri][ci - 1] <> plant)
+
+let plantCorners (plots: char array array) (ri, ci) =
+    [
+        if isTopLeftCorner (ri, ci) plots then yield 1
+        if isTopRightCorner (ri, ci) plots then yield 1
+        if isBottomRightCorner (ri, ci) plots then yield 1
+        if isBottomLeftCorner (ri, ci) plots then yield 1
+    ]
+    |> List.length
+
+let regionCorners (region: Region)  (plots: char array array) =
+    region.Area
+    |> List.sumBy (plantCorners plots)
+
+let part2 =
+    regions
+    |> List.sumBy (fun r -> (regionCorners r input) * (List.length r.Area))
