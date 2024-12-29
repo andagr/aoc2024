@@ -41,3 +41,13 @@ let part1 =
     |> List.map cost
     |> List.choose id
     |> List.sum
+
+let part2 =
+    games
+    |> List.map (fun g ->
+        { g with
+            X = g.X + 10000000000000M
+            Y = g.Y + 10000000000000M })
+    |> List.map cost
+    |> List.choose id
+    |> List.sum
