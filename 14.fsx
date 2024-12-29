@@ -1,4 +1,5 @@
-﻿open System.IO
+﻿open System
+open System.IO
 open System.Text.RegularExpressions
 
 let input = File.ReadLines("./14.txt")
@@ -62,3 +63,35 @@ let part1 =
         | None -> None
         | Some _ -> Some (List.length rs))
     |> List.reduce (*)
+
+let render (robots: Robot list) =
+    let renderLine grid robot =
+        let x, y = fst robot.P, snd robot.P
+        Array2D.set grid y x '█'
+        grid
+    let grid = Array2D.create height width ' '
+    robots
+    |> List.fold renderLine grid
+
+let renderMove robots =
+    let rec renderMove' seconds robots frames =
+        if seconds = 10001 then frames
+        else
+            let frame = render robots
+            renderMove' (seconds + 1) (robots |> List.map move) (frame :: frames)
+    renderMove' 0 robots []
+
+let print (frames: char array2d list) =
+    let printFrame (writer: StreamWriter) (frameIx: int) (frame: char array2d) =
+        writer.WriteLine(frameIx)
+        [ for i in 0 .. height - 1 -> frame[i, 0..] ]
+        |> List.map (fun cs -> String.Join("", cs))
+        |> List.iter writer.WriteLine
+    use writer = File.CreateText("./robot_positions.txt")
+    frames
+    |> List.iteri (printFrame writer)
+
+let part2 =
+    renderMove robots
+    |> List.rev
+    |> print
