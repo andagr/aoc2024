@@ -1,6 +1,4 @@
-﻿fsi.PrintWidth <- 300
-
-open System
+﻿open System
 open System.IO
 
 module Array2D =
@@ -21,31 +19,6 @@ module Array2D =
             elif x = (Array2D.length2 a2d - 1) then sum' (y + 1) 0 (value + Array2D.get a2d y x)
             else sum' y (x + 1) (value + Array2D.get a2d y x)
         sum' 0 0 0
-
-// let input =
-//     """
-//     ##########
-//     #..O..O.O#
-//     #......O.#
-//     #.OO..O.O#
-//     #..O@..O.#
-//     #O#..O...#
-//     #O..O..O.#
-//     #.OO.O.OO#
-//     #....O...#
-//     ##########
-//
-//     <vv>^<v^>v>^vv^v>v<>v^v<v<^vv<<<^><<><>>v<vvv<>^v^>^<<<><<v<<<v^vv^v>^
-//     vvv<<^>^v^^><<>>><>^<<><^vv^^<>vvv<>><^^v>^>vv<>v<<<<v<^v>^<^^>>>^<v<v
-//     ><>vv>v^v^<>><>>>><^^>vv>v<^^^>>v^v^<^^>v^^>v^<^v>v<>>v^v^<v>v^^<^^vv<
-//     <<v<^>>^^^^>>>v^<>vvv^><v<<<>^^^vv^<vvv>^>v<^^^^v<>^>vvvv><>>v^<<^^^^^
-//     ^><^><>>><>^^<<^^v>>><^<v>^<vv>>v>>>^v><>^v><<<<v>>v<v<v>vvv>^<><<>^><
-//     ^>><>^v<><^vvv<^^<><v<<<<<><^v<<<><<<^^<v<^^^><^>>^<v^><<<^>>^v<v^v<v^
-//     >^>>^v>vv>^<<^v<>><<><<v<<v><>v<^vv<<<>^^v^>^^>>><<^v>>v^v><^^>>^<>vv^
-//     <><^^>^^^<><vvvvv^v<v<<>^v<v>v<<^><<><<><<<^^<<<^<<>><<><^^^>^^<>^>v<>
-//     ^^>vv<^v^v<vv>^<><v<^v>^^^>>>^^vvv^>vvv<>>>^<^>>>>>^<<^v>^vvv<>^<><<v>
-//     v^^>>><<^^<>>^v^<v^vv<>v^<<>^<^v^v><^<<<><<^<v><v<>vv>>v><v^<vv<>v^<<^
-//     """
 
 let input = File.ReadAllText("./15.txt")
 
@@ -107,6 +80,13 @@ let room, instructions =
     |> _.Split("\n\n", StringSplitOptions.TrimEntries ||| StringSplitOptions.RemoveEmptyEntries)
     |> fun parts -> parseRoom parts[0], parseInstructions parts[1]
 
+let next (fy, fx) instruction =
+    match instruction with
+    | Up -> (fy - 1, fx)
+    | Right -> (fy, fx + 1)
+    | Down -> (fy + 1, fx)
+    | Left -> (fy, fx - 1)
+
 let exec instruction room =
     let move (fy, fx) (ty, tx) room =
         let movedObj = Array2D.get room fy fx
@@ -115,12 +95,6 @@ let exec instruction room =
             if y = fy && x = fx then Empty
             elif y = ty && x = tx then movedObj
             else ro)
-    let next (fy, fx) instruction =
-        match instruction with
-        | Up -> (fy - 1, fx)
-        | Right -> (fy, fx + 1)
-        | Down -> (fy + 1, fx)
-        | Left -> (fy, fx - 1)
     let rec tryMove (fy, fx) (ty, tx) room =
         let roomObj = Array2D.get room fy fx
         match roomObj with
@@ -135,17 +109,98 @@ let exec instruction room =
     | Error _ -> room
     | Ok movedRoom -> movedRoom
 
-viewRoom room
 let postRoom =
     instructions
     |> List.fold
         (fun room instruction -> exec instruction room)
         room
-viewRoom postRoom
+
 let part1 =
     postRoom
     |> Array2D.mapi (fun y x ro ->
         match ro with
         | Box -> y * 100 + x
+        | _ -> 0)
+    |> Array2D.sum
+
+type WideRoomObj =
+    | WWall
+    | WEmpty
+    | WBoxLeft
+    | WBoxRight
+    | WRobot
+
+let widen (room: RoomObj array2d) =
+    Array2D.init
+        (Array2D.length1 room)
+        (Array2D.length2 room * 2)
+        (fun y x ->
+            match room[y, x/2] with
+            | Wall -> WWall
+            | Empty -> WEmpty
+            | Box when x % 2 = 0 -> WBoxLeft
+            | Box -> WBoxRight
+            | Robot when x % 2 = 0 -> WRobot
+            | Robot -> WEmpty)
+
+let viewWideRoom wideRoom =
+    wideRoom
+    |> Array2D.map (fun wRoomObj ->
+        match wRoomObj with
+        | WWall -> '#'
+        | WEmpty -> '.'
+        | WBoxLeft -> '['
+        | WBoxRight -> ']'
+        | WRobot -> '@')
+
+let execWide instruction (wideRoom: WideRoomObj array2d) =
+    let wideMove (fy, fx) (ty, tx) (wideRoom: WideRoomObj array2d) =
+        let movedObj = Array2D.get wideRoom fy fx
+        wideRoom
+        |> Array2D.mapi (fun y x ro ->
+            if y = fy && x = fx then WEmpty
+            elif y = ty && x = tx then movedObj
+            else ro)
+    let rec tryWideMove (fy, fx) (ty, tx) (implicit: bool) (wideRoom: WideRoomObj array2d) =
+        let roomObj = Array2D.get wideRoom fy fx
+        match roomObj with
+        | WWall -> Error ()
+        | WEmpty -> Ok wideRoom
+        | WBoxLeft when instruction = Left || instruction = Right || implicit ->
+            tryWideMove (ty, tx) (next (ty, tx) instruction) false wideRoom
+            |> Result.map (wideMove (fy, fx) (ty, tx))
+        | WBoxRight when instruction = Left || instruction = Right || implicit ->
+            tryWideMove (ty, tx) (next (ty, tx) instruction) false wideRoom
+            |> Result.map (wideMove (fy, fx) (ty, tx))
+        | WRobot ->
+            tryWideMove (ty, tx) (next (ty, tx) instruction) false wideRoom
+            |> Result.map (wideMove (fy, fx) (ty, tx))
+        | WBoxLeft ->
+            tryWideMove (ty, tx) (next (ty, tx) instruction) false wideRoom
+            |> Result.bind (fun lwr -> tryWideMove (fy, fx + 1) (next (fy, fx + 1) instruction) true lwr)
+            |> Result.map (wideMove (fy, fx) (ty, tx))
+        | WBoxRight ->
+            tryWideMove (ty, tx) (next (ty, tx) instruction) false wideRoom
+            |> Result.bind (fun rwr -> tryWideMove (fy, fx - 1) (next (fy, fx - 1) instruction) true rwr)
+            |> Result.map (wideMove (fy, fx) (ty, tx))
+    let ry, rx = wideRoom |> Array2D.findIndex WRobot
+    match tryWideMove (ry, rx) (next (ry, rx) instruction) false wideRoom with
+    | Error _ -> wideRoom
+    | Ok movedRoom -> movedRoom
+
+
+let wideRoom = widen room
+
+let postWideRoom =
+    instructions
+    |> List.fold
+        (fun wideRoom instruction -> execWide instruction wideRoom)
+        wideRoom
+
+let part2 =
+    postWideRoom
+    |> Array2D.mapi (fun y x ro ->
+        match ro with
+        | WBoxLeft -> y * 100 + x
         | _ -> 0)
     |> Array2D.sum
