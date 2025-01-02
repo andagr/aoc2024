@@ -55,6 +55,7 @@ type Vertex = {
     Value: char
     Cost: int
     Visited: bool
+    PrevVerticesPos: (int * int) Set
 }
 
 let (|Start|Middle|End|Wall|) c =
@@ -89,6 +90,7 @@ let getStartVertex input =
         Cost = 0
         Value = input[startY][startX]
         Visited = false
+        PrevVerticesPos = Set.empty
     }
 
 let getVertex (input: char array array) { Facing = facing; Pos = (y, x) } =
@@ -97,6 +99,7 @@ let getVertex (input: char array array) { Facing = facing; Pos = (y, x) } =
         Cost = Int32.MaxValue
         Value = input[y][x]
         Visited = false
+        PrevVerticesPos = Set.empty
     }
 
 let findEdges (input: char array array) { Facing = facing; Pos = (y, x) } =
@@ -118,7 +121,9 @@ let findEdges (input: char array array) { Facing = facing; Pos = (y, x) } =
 let visit input =
     let updateCost source edge target =
         let newCost = (source.Cost + edge.Dist)
-        { target with Cost = min target.Cost newCost }
+        { target with
+            Cost = min target.Cost newCost
+            PrevVerticesPos = target.PrevVerticesPos |> Set.union (source.PrevVerticesPos |> Set.add source.VertexId.Pos) }
     let rec visitAll' vertices source =
         let targets =
             findEdges input source.VertexId
@@ -146,8 +151,17 @@ let visit input =
 
 let vertices = visit input
 List.length vertices
-vertices
-|> List.find (fun v ->
-    match v.Value with
-    | End -> true
-    | _ -> false)
+
+let endVertex =
+    vertices
+    |> List.find (fun v ->
+        match v.Value with
+        | End -> true
+        | _ -> false)
+
+let part1 = endVertex.Cost
+
+let part2 =
+    endVertex.PrevVerticesPos
+    |> Set.add endVertex.VertexId.Pos
+    |> Set.count
