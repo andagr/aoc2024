@@ -112,9 +112,31 @@ let rec exec computer =
         exec computer'
 
 let computer = init program registerA registerB registerC
-let haltedComputer = exec computer
 
 let part1 =
-    haltedComputer.OutRev
+    exec computer
+    |> _.OutRev
     |> List.rev
     |> fun out -> String.Join(',', out)
+
+let reset computer =
+    { computer with
+        Pointer = 0
+        RegisterA = 0
+        RegisterB = 0
+        RegisterC = 0
+        OutRev = [] }
+
+let execIter computer =
+    let outRevGoal = computer.Program |> List.ofArray |> List.rev
+    let rec execIter' computer =
+        if computer.RegisterA % 1000000 = 0 then
+            printfn $"{computer.RegisterA}"
+        let result = exec computer
+        if result.OutRev = outRevGoal then computer
+        else execIter' { reset computer with RegisterA = computer.RegisterA + 1 }
+    execIter' (reset computer)
+
+let part2 =
+    execIter computer
+    |> _.RegisterA
